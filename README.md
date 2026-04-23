@@ -106,9 +106,9 @@ sudo bash rollback-quota.sh
 
 | 서버 | 인스턴스 | 메모리 | hard limit | soft limit | CPUShares | ssh adj | 상태 |
 |------|----------|--------|-----------|-----------|-----------|---------|------|
-| r7 | i-0c30cae12f60d69d1 | 123GB | 117.6GB (95%) | 105.2GB (85%) | 2048 | -1000 | ✅ |
-| g5 | i-0dc3c13df82448939 | 186GB | 177.4GB (95%) | 158.7GB (85%) | 2048 | -1000 | ✅ |
-| head | i-074a73c3cf9656989 | 15GB | 14.6GB (95%) | 13.0GB (85%) | 2048 | -1000 | ✅ |
+| r7 | i-0c30cae12f60d69d1 | 123GB | 117.6GB (95%) | 105.2GB (85%) | 2048 | -1000 |  |
+| g5 | i-0dc3c13df82448939 | 186GB | 177.4GB (95%) | 158.7GB (85%) | 2048 | -1000 |  |
+| head | i-074a73c3cf9656989 | 15GB | 14.6GB (95%) | 13.0GB (85%) | 2048 | -1000 |  |
 
 - 서버 전체 장애: **0건**
 - soft lockup / panic: **0건**
@@ -122,14 +122,14 @@ sudo bash rollback-quota.sh
 
 | 경로 | 내용 | 영속 |
 |------|------|------|
-| `/etc/systemd/system/user.slice.d/memory-limit.conf` | MemoryLimit=95% | ✅ 재부팅 유지 |
-| `/etc/systemd/system/{ssh,sshd}.service.d/oom-protect.conf` | OOMScoreAdjust=-900 | ✅ 재부팅 유지 |
-| `/etc/systemd/system/systemd-logind.service.d/oom-protect.conf` | OOMScoreAdjust=-900 | ✅ 재부팅 유지 |
-| `/etc/systemd/system/systemd-journald.service.d/oom-protect.conf` | OOMScoreAdjust=-900 | ✅ 재부팅 유지 |
-| `/etc/systemd/system/system.slice.d/cpu-priority.conf` | CPUShares=2048 | ✅ 재부팅 유지 |
-| `/etc/systemd/system/user-slice-softlimit.service` | soft limit 부팅 시 적용 | ✅ 재부팅 유지 |
-| `/etc/default/user-slice-softlimit.conf` | soft limit 값 저장 | ✅ |
-| `/usr/local/sbin/apply-user-slice-softlimit.sh` | soft limit 적용 헬퍼 | ✅ |
+| `/etc/systemd/system/user.slice.d/memory-limit.conf` | MemoryLimit=95% |  재부팅 유지 |
+| `/etc/systemd/system/{ssh,sshd}.service.d/oom-protect.conf` | OOMScoreAdjust=-900 |  재부팅 유지 |
+| `/etc/systemd/system/systemd-logind.service.d/oom-protect.conf` | OOMScoreAdjust=-900 |  재부팅 유지 |
+| `/etc/systemd/system/systemd-journald.service.d/oom-protect.conf` | OOMScoreAdjust=-900 |  재부팅 유지 |
+| `/etc/systemd/system/system.slice.d/cpu-priority.conf` | CPUShares=2048 |  재부팅 유지 |
+| `/etc/systemd/system/user-slice-softlimit.service` | soft limit 부팅 시 적용 |  재부팅 유지 |
+| `/etc/default/user-slice-softlimit.conf` | soft limit 값 저장 |  |
+| `/usr/local/sbin/apply-user-slice-softlimit.sh` | soft limit 적용 헬퍼 |  |
 | `/root/quota-backup/` | 적용 전 백업값 | 롤백용 |
 
 ---
