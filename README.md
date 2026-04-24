@@ -97,23 +97,34 @@ bash verify-quota.sh
 ### 롤백
 
 ```bash
+# AWS 서버 (r7/g5/head) — cgroup v1
 sudo bash rollback-quota.sh
+
+# dgx-a100 — cgroup v2 (수동)
+rm -rf /etc/systemd/system/user.slice.d
+rm -rf /etc/systemd/system/system.slice.d
+rm -rf /etc/systemd/system/ssh.service.d
+rm -rf /etc/systemd/system/systemd-logind.service.d
+rm -rf /etc/systemd/system/systemd-journald.service.d
+systemctl daemon-reload
+systemctl restart ssh
 ```
 
 ---
 
 ## 적용 결과 (검증 완료)
 
-| 서버 | 인스턴스 | 메모리 | hard limit | soft limit | CPUShares | ssh adj | 상태 |
-|------|----------|--------|-----------|-----------|-----------|---------|------|
-| r7 | i-0c30cae12f60d69d1 | 123GB | 117.6GB (95%) | 105.2GB (85%) | 2048 | -1000 |  |
-| g5 | i-0dc3c13df82448939 | 186GB | 177.4GB (95%) | 158.7GB (85%) | 2048 | -1000 |  |
-| head | i-074a73c3cf9656989 | 15GB | 14.6GB (95%) | 13.0GB (85%) | 2048 | -1000 |  |
+| 서버 | 인스턴스 | 메모리 | hard limit | soft limit | CPU 우선순위 | ssh adj | 상태 | 비고 |
+|------|----------|--------|-----------|-----------|-------------|---------|------|------|
+| r7 | i-0c30cae12f60d69d1 | 123GB | 117.6GB (95%) | 105.2GB (85%) | CPUShares=2048 | -1000 | ✅ | cgroup v1 |
+| g5 | i-0dc3c13df82448939 | 186GB | 177.4GB (95%) | 158.7GB (85%) | CPUShares=2048 | -1000 | ✅ | cgroup v1 |
+| head | i-074a73c3cf9656989 | 15GB | 14.6GB (95%) | 13.0GB (85%) | CPUShares=2048 | -1000 | ✅ | cgroup v1 |
+| dgx-a100 | 182.162.160.68 | 1TB | 957GB (95%) MemoryMax | 856GB (85%) MemoryHigh | CPUWeight=200 | -1000 | ✅ | cgroup v2, swap 32GB |
 
 - 서버 전체 장애: **0건**
 - soft lockup / panic: **0건**
 - 서비스 중단: **0건**
-- 사용자 영향: **없음** (g5 13명 접속 중 적용, 문제 없음)
+- 사용자 영향: **없음** (g5 13명 접속 중 적용, dgx-a100 37세션 접속 중 적용, 문제 없음)
 - 재부팅: **없음**
 
 ---
@@ -136,17 +147,29 @@ sudo bash rollback-quota.sh
 
 ## 대상 환경
 
+### AWS 서버 (r7, g5, head)
 - Ubuntu 20.04
 - systemd 245
 - cgroup hybrid (v1 memory controller active)
 - swap 없음
+- 설정: `MemoryLimit` (v1), `CPUShares` (v1), `memory.soft_limit_in_bytes` (v1 hint)
+
+### 온프레미스 (dgx-a100)
+- Ubuntu 22.04
+- systemd 249
+- cgroup v2 only
+- swap 32GB
+- 설정: `MemoryMax` (v2), `MemoryHigh` (v2 soft throttle), `CPUWeight` (v2)
+- Docker cgroup driver: systemd (user.slice 안에 컨테이너 포함 → blind spot 없음)
 
 ---
 
 ## 주의사항
 
-- `soft limit`는 핵심 보호 수단이 아닙니다. 커널에 대한 캐시 정리 힌트일 뿐이며, hard limit 없이는 의미 없습니다.
-- `CPUShares`는 soft lockup 직접 해결책이 아닙니다. CPU 경합 시 시스템 서비스 우선순위를 높이는 보조 수단입니다.
+- `soft limit`는 핵심 보호 수단이 아닙니다. v1에서는 커널에 대한 캐시 정리 힌트일 뿐이며, hard limit 없이는 의미 없습니다.
+- v2의 `MemoryHigh`는 v1 soft limit과 달리 실제 throttle이 작동합니다 (dgx-a100에 적용).
+- `CPUShares`(v1) / `CPUWeight`(v2)는 soft lockup 직접 해결책이 아닙니다. CPU 경합 시 시스템 서비스 우선순위를 높이는 보조 수단입니다.
 - OOM kill 대상은 "가장 큰 메모리를 쓰는 프로세스"가 되는 **경향**이 있으나, 커널이 100% 보장하지는 않습니다.
-- Docker 컨테이너는 `user.slice` 밖에 생성되므로 이 정책의 적용을 받지 않습니다. 별도 `--memory` 옵션이 필요합니다.
+- Docker 컨테이너: v1 서버(r7/g5/head)에서는 `user.slice` 밖에 생성되므로 별도 `--memory` 옵션이 필요합니다. v2 서버(dgx-a100)에서는 Docker cgroup driver가 systemd이므로 정책 적용됩니다.
+- dgx-a100은 swap 32GB가 있어 OOM kill 전에 swap 사용이 발생할 수 있습니다. swap thrashing이 문제되면 `MemorySwapMax=10%` 추가를 검토하세요.
 - SSH 재시작 시 기존 연결은 유지되지만, 반드시 별도 세션을 확보한 상태에서 실행하세요.
